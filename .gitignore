@@ -15,3 +15,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release signing — keep the key and its passwords out of the repo
+keystore.properties
+*.jks
+*.keystore

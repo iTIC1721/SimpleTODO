@@ -71,7 +71,19 @@
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> 릴리스 서명 설정은 아직 없습니다. 배포용 빌드가 필요하면 키스토어와 `signingConfigs` 를 먼저 추가해야 합니다.
+### 릴리스 빌드
+1. 서명 키를 만듭니다(최초 1회). 키 파일은 저장소 밖에 두고 반드시 백업하세요. 키를 잃어버리면 기존 설치본 위에 업데이트를 설치할 수 없습니다.
+   ```bash
+   keytool -genkeypair -v -keystore ../../keys/simpletodo-release.jks -alias simpletodo -keyalg RSA -keysize 2048 -validity 10000
+   ```
+2. `keystore.properties.example` 을 `keystore.properties` 로 복사하고 키 경로와 비밀번호를 채웁니다. 이 파일은 git에서 제외됩니다.
+3. 서명된 APK를 빌드합니다.
+   ```bash
+   ./gradlew :app:assembleRelease
+   ```
+   결과물은 `app/build/outputs/apk/release/app-release.apk` 입니다. `keystore.properties` 가 없으면 서명되지 않은 `app-release-unsigned.apk` 가 생성됩니다.
+
+> 디버그 빌드와 릴리스 빌드는 서명 키가 달라서 서로 덮어 설치할 수 없습니다. 디버그 빌드를 지우고 릴리스 빌드를 설치하면 기존 데이터가 삭제됩니다.
 
 ### 테스트
 DAO 계측 테스트는 연결된 기기 또는 에뮬레이터가 필요합니다.
