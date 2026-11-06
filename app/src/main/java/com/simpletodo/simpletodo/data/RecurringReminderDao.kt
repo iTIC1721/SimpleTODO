@@ -27,4 +27,13 @@ interface RecurringReminderDao {
 
     @Delete
     suspend fun delete(reminder: RecurringReminder)
+
+    @Query("SELECT * FROM recurring_reminder ORDER BY createdAt ASC")
+    suspend fun getAllOnce(): List<RecurringReminder>
+
+    @Insert
+    suspend fun insertAll(reminders: List<RecurringReminder>)
+
+    @Query("DELETE FROM recurring_reminder")
+    suspend fun deleteAll()
 }

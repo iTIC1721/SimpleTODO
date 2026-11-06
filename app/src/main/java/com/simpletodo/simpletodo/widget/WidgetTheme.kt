@@ -12,33 +12,27 @@ import com.simpletodo.simpletodo.data.ThemePreferences
  * independent of the system setting, colors are resolved to explicit ARGB
  * ints here and applied with setTextColor/setInt instead.
  */
+// Mirrors the app's graphite ramp and single violet accent (ui/theme/Color.kt).
 data class WidgetColors(
-    val background: Int,
     val text: Int,
-    val subText: Int,
-    val headerText: Int,
-    val divider: Int,
+    val muted: Int,
+    val accent: Int,
+    val error: Int,
 )
 
 private val LIGHT_COLORS = WidgetColors(
-    background = 0xFFFFFFFF.toInt(),
-    text = 0xFF1C1B1F.toInt(),
-    subText = 0xFF49454F.toInt(),
-    headerText = 0xFF6650A4.toInt(),
-    divider = 0xFFE0E0E0.toInt(),
+    text = 0xFF171717.toInt(),
+    muted = 0xFF737373.toInt(),
+    accent = 0xFF624DE6.toInt(),
+    error = 0xFFDC2626.toInt(),
 )
 
 private val DARK_COLORS = WidgetColors(
-    background = 0xFF1C1B1F.toInt(),
-    text = 0xFFE6E1E5.toInt(),
-    subText = 0xFFCAC4D0.toInt(),
-    headerText = 0xFFD0BCFF.toInt(),
-    divider = 0xFF3A3742.toInt(),
+    text = 0xFFEDEDED.toInt(),
+    muted = 0xFF85858B.toInt(),
+    accent = 0xFFA996FF.toInt(),
+    error = 0xFFE5484D.toInt(),
 )
-
-// Matches ui.theme.ImportantAccent — one tone, since it reads clearly on both
-// a light and a dark widget background.
-val WIDGET_IMPORTANT_ACCENT = 0xFFFFAB00.toInt()
 
 fun resolveWidgetIsDark(context: Context): Boolean {
     return when (ThemePreferences(context).themeMode) {

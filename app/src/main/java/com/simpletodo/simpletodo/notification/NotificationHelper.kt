@@ -84,7 +84,7 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
-            .setContentTitle("오늘의 일정 ${schedules.size}건")
+            .setContentTitle("오늘 일정 ${schedules.size}개")
             .setContentText(schedules.joinToString(", ") { it.title })
             .setStyle(inboxStyle)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

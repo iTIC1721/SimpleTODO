@@ -1,5 +1,8 @@
 <resources>
     <string name="app_name">SimpleTODO</string>
-    <string name="widget_title">일정 목록</string>
-    <string name="widget_empty">등록된 일정이 없습니다</string>
+    <string name="widget_title">일정</string>
+    <string name="widget_empty">일정 없음</string>
+    <string name="widget_add">일정 추가</string>
+    <string name="widget_complete">완료</string>
+    <string name="widget_important">중요</string>
 </resources>

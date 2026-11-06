@@ -4,17 +4,22 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -26,6 +31,8 @@ import com.simpletodo.simpletodo.data.ThemePreferences
 import com.simpletodo.simpletodo.notification.NotificationHelper
 import com.simpletodo.simpletodo.ui.AddRecurringReminderScreen
 import com.simpletodo.simpletodo.ui.AddScheduleScreen
+import com.simpletodo.simpletodo.ui.AppInfoScreen
+import com.simpletodo.simpletodo.ui.OpenSourceLicensesScreen
 import com.simpletodo.simpletodo.ui.ScheduleListScreen
 import com.simpletodo.simpletodo.ui.ScheduleViewModel
 import com.simpletodo.simpletodo.ui.SettingsScreen
@@ -60,6 +67,17 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
+            // enableEdgeToEdge() alone picks icon colors from the *system*
+            // theme, so a dark app on a light phone got dark, unreadable
+            // status bar icons. Follow the app's own theme instead.
+            LaunchedEffect(darkTheme) {
+                val style = if (darkTheme) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
             SimpleTODOTheme(darkTheme = darkTheme) {
                 ScheduleApp(
                     modifier = Modifier.fillMaxSize(),
@@ -79,6 +97,8 @@ private sealed interface Screen {
     data object List : Screen
     data object Add : Screen
     data object Settings : Screen
+    data object AppInfo : Screen
+    data object Licenses : Screen
     data class Edit(val schedule: Schedule) : Screen
     data object AddReminder : Screen
     data class EditReminder(val reminder: RecurringReminder) : Screen
@@ -92,6 +112,9 @@ fun ScheduleApp(
 ) {
     val viewModel: ScheduleViewModel = viewModel()
     var screen by remember { mutableStateOf<Screen>(if (startOnAddScreen) Screen.Add else Screen.List) }
+    // Held here rather than inside the list screen, so returning from an
+    // add/edit screen lands back on the tab the user came from.
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
     // Add was reached directly from the widget's + button, not from the app's
     // own list screen — there's nothing to "go back" to inside the app, so
@@ -102,6 +125,8 @@ fun ScheduleApp(
     when (val current = screen) {
         Screen.List -> ScheduleListScreen(
             viewModel = viewModel,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
             onAddClick = { screen = Screen.Add },
             onScheduleClick = { screen = Screen.Edit(it) },
             onSettingsClick = { screen = Screen.Settings },
@@ -124,6 +149,16 @@ fun ScheduleApp(
         )
         Screen.Settings -> SettingsScreen(
             onBack = { screen = Screen.List },
+            onOpenAppInfo = { screen = Screen.AppInfo },
+            modifier = modifier,
+        )
+        Screen.AppInfo -> AppInfoScreen(
+            onBack = { screen = Screen.Settings },
+            onOpenLicenses = { screen = Screen.Licenses },
+            modifier = modifier,
+        )
+        Screen.Licenses -> OpenSourceLicensesScreen(
+            onBack = { screen = Screen.AppInfo },
             modifier = modifier,
         )
         Screen.AddReminder -> AddRecurringReminderScreen(

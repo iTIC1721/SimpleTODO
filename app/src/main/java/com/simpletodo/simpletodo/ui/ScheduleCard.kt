@@ -1,17 +1,17 @@
 package com.simpletodo.simpletodo.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -19,13 +19,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.simpletodo.simpletodo.data.Schedule
-import com.simpletodo.simpletodo.ui.theme.ImportantAccent
-import com.simpletodo.simpletodo.ui.theme.SimpleTODOTheme
+import com.simpletodo.simpletodo.ui.theme.mutedText
 import java.time.LocalDate
 import java.time.LocalTime
+
+// The checkbox's 48dp touch box is pulled in so its 22dp square sits on the
+// page gutter; text then starts at a fixed column for every row.
+internal val CheckboxStartPadding = PageGutter - 13.dp
+internal val RowTextStart = CheckboxStartPadding + 48.dp
 
 private fun Schedule.isOverdue(): Boolean {
     val today = LocalDate.now()
@@ -36,106 +40,103 @@ private fun Schedule.isOverdue(): Boolean {
     }
 }
 
+private fun Schedule.dateLine(): String {
+    val dateText = date.toDisplayString()
+    return time?.let { "$dateText · ${it.toDisplayString()}" } ?: dateText
+}
+
 @Composable
-fun CurrentScheduleCard(
+fun CurrentScheduleRow(
     schedule: Schedule,
     onComplete: (Schedule) -> Unit,
     onEdit: (Schedule) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val overdue = schedule.isOverdue()
-    Card(onClick = { onEdit(schedule) }, modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clickable { onEdit(schedule) }
+            .padding(start = CheckboxStartPadding, end = PageGutter),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TaskCheckbox(checked = false, onClick = { onComplete(schedule) }, contentDescription = "완료")
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 12.dp),
         ) {
-            Checkbox(checked = false, onCheckedChange = { onComplete(schedule) })
-            Column(modifier = Modifier.padding(start = 8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (schedule.isImportant) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = "중요",
-                            tint = ImportantAccent,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(4.dp))
-                    }
-                    Text(
-                        text = schedule.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (schedule.isImportant) ImportantAccent else MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-                val dateText = schedule.date.toDisplayString()
-                val timeText = schedule.time?.toDisplayString()
-                val subtitleColor = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                Text(
-                    text = if (timeText != null) "$dateText $timeText" else dateText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = subtitleColor,
-                )
-                if (overdue) {
-                    Text(
-                        text = "기한 지남",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
+            Text(
+                text = schedule.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (schedule.isImportant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = schedule.dateLine(),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.mutedText,
+            )
+        }
+        if (schedule.isImportant) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = "중요",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(18.dp),
+            )
+        } else {
+            // Keeps the title column the same width whether or not a row is important.
+            Spacer(Modifier.width(30.dp))
         }
     }
 }
 
 @Composable
-fun PastScheduleCard(
+fun PastScheduleRow(
     schedule: Schedule,
     onRestore: (Schedule) -> Unit,
     onDelete: (Schedule) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .padding(start = CheckboxStartPadding, end = PageGutter - 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TaskCheckbox(checked = true, onClick = { onRestore(schedule) }, contentDescription = "완료 취소")
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 12.dp),
         ) {
-            Checkbox(checked = true, onCheckedChange = { onRestore(schedule) })
-            Column(
-                modifier = Modifier
-                    .padding(start = 8.dp)
-                    .weight(1f),
-            ) {
-                Text(text = schedule.title, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    text = schedule.date.toDisplayString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                schedule.completedAt?.let {
-                    Text(
-                        text = "완료: ${it.toDisplayString()}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-            IconButton(onClick = { onDelete(schedule) }) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "삭제",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = schedule.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val completed = schedule.completedAt?.let { " · ${completedText(schedule.date, it)}" }.orEmpty()
+            Text(
+                text = schedule.date.toDisplayString() + completed,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.mutedText,
+            )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun CurrentScheduleCardPreview() {
-    SimpleTODOTheme {
-        CurrentScheduleCard(
-            schedule = Schedule(title = "치과 예약", date = LocalDate.now()),
-            onComplete = {},
-            onEdit = {},
-        )
+        IconButton(onClick = { onDelete(schedule) }) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = "삭제",
+                tint = MaterialTheme.mutedText,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }

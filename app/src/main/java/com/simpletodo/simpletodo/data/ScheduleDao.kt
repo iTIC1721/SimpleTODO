@@ -63,4 +63,13 @@ interface ScheduleDao {
         """
     )
     suspend fun getSchedulesForDate(date: LocalDate): List<Schedule>
+
+    @Query("SELECT * FROM schedule ORDER BY createdAt ASC")
+    suspend fun getAllOnce(): List<Schedule>
+
+    @Insert
+    suspend fun insertAll(schedules: List<Schedule>)
+
+    @Query("DELETE FROM schedule")
+    suspend fun deleteAll()
 }

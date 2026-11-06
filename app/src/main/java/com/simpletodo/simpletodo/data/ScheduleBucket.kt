@@ -7,10 +7,10 @@ import java.time.temporal.ChronoUnit
 fun scheduleBucketLabel(date: LocalDate, today: LocalDate): String {
     val daysUntil = ChronoUnit.DAYS.between(today, date)
     return when {
-        daysUntil < 0 -> "지난 일정"
+        daysUntil < 0 -> "기한 지남"
         daysUntil == 0L -> "오늘"
         daysUntil == 1L -> "내일"
         daysUntil in 2..7 -> "7일 이내"
-        else -> "나중 할일"
+        else -> "나중에"
     }
 }

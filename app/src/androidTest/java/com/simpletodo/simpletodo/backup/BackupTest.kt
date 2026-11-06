@@ -1,0 +1,137 @@
+package com.simpletodo.simpletodo.backup
+
+import android.content.Context
+import android.net.Uri
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.simpletodo.simpletodo.data.AlarmPreferences
+import com.simpletodo.simpletodo.data.AppDatabase
+import com.simpletodo.simpletodo.data.RecurringReminder
+import com.simpletodo.simpletodo.data.Schedule
+import com.simpletodo.simpletodo.data.ThemeMode
+import com.simpletodo.simpletodo.data.ThemePreferences
+import com.simpletodo.simpletodo.data.daysOfWeekToMask
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.io.File
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+
+@RunWith(AndroidJUnit4::class)
+class BackupTest {
+
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+
+    private val schedules = listOf(
+        Schedule(
+            title = "치과 \"예약\"", date = LocalDate.of(2026, 11, 20), time = LocalTime.of(14, 30),
+            isImportant = true, createdAt = Instant.parse("2026-11-01T10:00:00Z"),
+        ),
+        Schedule(
+            title = "장보기", date = LocalDate.of(2026, 11, 3), isCompleted = true,
+            completedAt = Instant.parse("2026-11-03T09:15:30.123Z"), createdAt = Instant.parse("2026-11-02T08:00:00Z"),
+        ),
+    )
+    private val reminders = listOf(
+        RecurringReminder(
+            title = "게임 출석체크", time = LocalTime.of(7, 0), createdAt = Instant.parse("2026-10-01T00:00:00Z"),
+            daysOfWeekMask = daysOfWeekToMask(setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)),
+        ),
+        RecurringReminder(
+            title = "강아지 산책", isEnabled = false, createdAt = Instant.parse("2026-10-02T00:00:00Z"),
+            daysOfWeekMask = daysOfWeekToMask(setOf(DayOfWeek.WEDNESDAY, DayOfWeek.SUNDAY)),
+        ),
+    )
+    private val settings = BackupSettings(LocalTime.of(7, 30), 20, ThemeMode.DARK)
+
+    @Test
+    fun encodeThenDecode_roundTripsEveryField() {
+        val json = BackupFormat.encode(BackupData(schedules, reminders, settings))
+        val decoded = BackupFormat.decode(json)
+
+        assertEquals(schedules, decoded.schedules)
+        assertEquals(reminders, decoded.recurringReminders)
+        assertEquals(settings, decoded.settings)
+    }
+
+    @Test
+    fun decode_rejectsForeignJsonAndGarbage() {
+        listOf("""{"hello":"world"}""", "not json at all", "").forEach { input ->
+            try {
+                BackupFormat.decode(input)
+                fail("expected rejection for: $input")
+            } catch (_: InvalidBackupException) {
+            }
+        }
+    }
+
+    @Test
+    fun decode_rejectsNewerFormatVersion() {
+        val json = BackupFormat.encode(BackupData(schedules, reminders, settings))
+            .replace("\"version\": ${BackupFormat.FORMAT_VERSION}", "\"version\": 99")
+        try {
+            BackupFormat.decode(json)
+            fail("expected rejection")
+        } catch (e: InvalidBackupException) {
+            assert(e.message!!.contains("상위 버전"))
+        }
+    }
+
+    @Test
+    fun exportThenRestore_replacesDatabaseContentsAndSettings() = runBlocking<Unit> {
+        val db = AppDatabase.getInstance(context)
+        val scheduleDao = db.scheduleDao()
+        val reminderDao = db.recurringReminderDao()
+        val file = File(context.cacheDir, "backup-test.json")
+
+        // Source data, exported.
+        scheduleDao.deleteAll(); reminderDao.deleteAll()
+        scheduleDao.insertAll(schedules)
+        reminderDao.insertAll(reminders)
+        AlarmPreferences(context).apply { defaultNotifyHour = 7; defaultNotifyMinute = 30; leadMinutes = 20 }
+        ThemePreferences(context).themeMode = ThemeMode.DARK
+        val exported = BackupManager.export(context, Uri.fromFile(file))
+        assertEquals(BackupSummary(2, 2), exported)
+
+        // Different data and settings in place, then restore over them.
+        scheduleDao.deleteAll(); reminderDao.deleteAll()
+        scheduleDao.insert(Schedule(title = "지워져야 할 일정", date = LocalDate.of(2026, 12, 1)))
+        AlarmPreferences(context).apply { defaultNotifyHour = 9; defaultNotifyMinute = 0; leadMinutes = 5 }
+        ThemePreferences(context).themeMode = ThemeMode.LIGHT
+
+        val restored = BackupManager.restore(context, Uri.fromFile(file))
+
+        assertEquals(BackupSummary(2, 2), restored)
+        assertEquals(schedules, scheduleDao.getAllOnce().map { it.copy(id = 0) })
+        assertEquals(reminders, reminderDao.getAllOnce().map { it.copy(id = 0) })
+        assertEquals(LocalTime.of(7, 30), AlarmPreferences(context).defaultNotifyTime)
+        assertEquals(20, AlarmPreferences(context).leadMinutes)
+        assertEquals(ThemeMode.DARK, ThemePreferences(context).themeMode)
+
+        scheduleDao.deleteAll(); reminderDao.deleteAll()
+        file.delete()
+    }
+
+    @Test
+    fun restoreOfInvalidFile_leavesExistingDataUntouched() = runBlocking<Unit> {
+        val scheduleDao = AppDatabase.getInstance(context).scheduleDao()
+        val file = File(context.cacheDir, "not-a-backup.json").apply { writeText("""{"format":"other"}""") }
+        scheduleDao.deleteAll()
+        scheduleDao.insert(Schedule(title = "남아 있어야 할 일정", date = LocalDate.of(2026, 12, 1)))
+
+        try {
+            BackupManager.restore(context, Uri.fromFile(file))
+            fail("expected rejection")
+        } catch (_: InvalidBackupException) {
+        }
+
+        assertEquals(listOf("남아 있어야 할 일정"), scheduleDao.getAllOnce().map { it.title })
+        scheduleDao.deleteAll()
+        file.delete()
+    }
+}

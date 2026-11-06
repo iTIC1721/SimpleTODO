@@ -2,15 +2,29 @@ package com.simpletodo.simpletodo.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// One neutral graphite ramp for every surface, border and text role, plus a
+// single accent taken from the launcher icon's violet. The accent is reserved
+// for the primary action, the current selection, checked items and
+// "important" schedules — everything else stays neutral.
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Light
+val LightBackground = Color(0xFFFAFAFA)
+val LightSurface = Color(0xFFFFFFFF)
+val LightRaised = Color(0xFFF4F4F5)
+val LightTextPrimary = Color(0xFF171717)
+val LightTextSecondary = Color(0xFF525252)
+val LightTextMuted = Color(0xFF737373)
+val LightHairline = Color(0x14171717) // primary text at 8%
+val LightAccent = Color(0xFF624DE6) // icon violet, 5.6:1 against white
+val LightError = Color(0xFFDC2626)
 
-// Marks "important" schedules in both the app and the widget — kept as a single
-// tone (rather than separate light/dark variants) since it reads clearly on
-// both a light card and a dark card background.
-val ImportantAccent = Color(0xFFFFAB00)
+// Dark
+val DarkBackground = Color(0xFF141415)
+val DarkSurface = Color(0xFF19191B)
+val DarkRaised = Color(0xFF232325)
+val DarkTextPrimary = Color(0xFFEDEDED)
+val DarkTextSecondary = Color(0xFFA1A1A6)
+val DarkTextMuted = Color(0xFF85858B)
+val DarkHairline = Color(0x14EDEDED)
+val DarkAccent = Color(0xFFA996FF) // lighter step of the icon violet, 7.4:1 on the page
+val DarkError = Color(0xFFE5484D)

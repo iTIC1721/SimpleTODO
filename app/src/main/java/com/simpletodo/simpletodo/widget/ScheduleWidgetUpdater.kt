@@ -47,8 +47,8 @@ object ScheduleWidgetUpdater {
             if (isDark) R.drawable.widget_background_dark else R.drawable.widget_background_light,
         )
         views.setTextColor(R.id.widget_title_label, colors.text)
-        views.setTextColor(R.id.widget_add_button, colors.text)
-        views.setTextColor(R.id.widget_empty_text, colors.subText)
+        views.setInt(R.id.widget_add_button, "setColorFilter", colors.text)
+        views.setTextColor(R.id.widget_empty_text, colors.muted)
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
