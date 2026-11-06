@@ -6,8 +6,8 @@ import android.content.Context
 import android.content.Intent
 import com.simpletodo.simpletodo.data.AlarmPreferences
 import com.simpletodo.simpletodo.data.Schedule
-import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 
 /**
@@ -39,18 +39,20 @@ object AlarmScheduler {
         alarmManager.cancel(pendingIntentFor(context, scheduleId))
     }
 
-    /** Schedules (or re-chains) the next occurrence of the daily briefing alarm. */
-    fun scheduleDailyBriefing(context: Context) {
+    /**
+     * Schedules (or re-chains) the next briefing strictly after [after]. The
+     * receiver passes the occurrence that just fired, so an alarm delivered
+     * slightly early can't re-schedule itself for the same day.
+     */
+    fun scheduleDailyBriefing(context: Context, after: LocalDateTime = LocalDateTime.now()) {
         val preferences = AlarmPreferences(context)
-        val now = LocalDateTime.now()
-        var triggerDateTime = LocalDateTime.of(LocalDate.now(), preferences.defaultNotifyTime)
-        if (!triggerDateTime.isAfter(now)) {
-            triggerDateTime = triggerDateTime.plusDays(1)
-        }
+        val triggerDateTime = nextBriefing(after, preferences.defaultNotifyTime)
         val triggerMillis = triggerDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, DailyBriefingReceiver::class.java)
+        val intent = Intent(context, DailyBriefingReceiver::class.java).apply {
+            putExtra(RecurringReminderScheduler.EXTRA_TRIGGER_AT_MILLIS, triggerMillis)
+        }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             BRIEFING_REQUEST_CODE,
@@ -58,6 +60,11 @@ object AlarmScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         setExact(alarmManager, triggerMillis, pendingIntent)
+    }
+
+    internal fun nextBriefing(after: LocalDateTime, time: LocalTime): LocalDateTime {
+        val candidate = LocalDateTime.of(after.toLocalDate(), time)
+        return if (candidate.isAfter(after)) candidate else candidate.plusDays(1)
     }
 
     private fun setExact(alarmManager: AlarmManager, triggerMillis: Long, pendingIntent: PendingIntent) {

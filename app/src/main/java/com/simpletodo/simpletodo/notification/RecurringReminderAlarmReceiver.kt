@@ -14,6 +14,8 @@ class RecurringReminderAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val reminderId = intent.getLongExtra(EXTRA_REMINDER_ID, -1L)
         if (reminderId == -1L) return
+        val scheduledAt = intent.getLongExtra(RecurringReminderScheduler.EXTRA_TRIGGER_AT_MILLIS, -1L)
+        val rechainFrom = RecurringReminderScheduler.rechainBase(scheduledAt)
 
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
@@ -23,7 +25,7 @@ class RecurringReminderAlarmReceiver : BroadcastReceiver() {
                 if (reminder.isEnabled) {
                     NotificationHelper.showRecurringReminder(context, reminder)
                 }
-                RecurringReminderScheduler.schedule(context, reminder)
+                RecurringReminderScheduler.schedule(context, reminder, after = rechainFrom)
             } finally {
                 pendingResult.finish()
             }

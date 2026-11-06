@@ -13,13 +13,15 @@ import java.time.LocalDate
 class DailyBriefingReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        val scheduledAt = intent.getLongExtra(RecurringReminderScheduler.EXTRA_TRIGGER_AT_MILLIS, -1L)
+        val rechainFrom = RecurringReminderScheduler.rechainBase(scheduledAt)
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val dao = AppDatabase.getInstance(context).scheduleDao()
                 val todaySchedules = dao.getSchedulesForDate(LocalDate.now())
                 NotificationHelper.showBriefing(context, todaySchedules)
-                AlarmScheduler.scheduleDailyBriefing(context)
+                AlarmScheduler.scheduleDailyBriefing(context, after = rechainFrom)
             } finally {
                 pendingResult.finish()
             }
