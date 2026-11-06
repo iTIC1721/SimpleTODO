@@ -16,7 +16,7 @@ import java.time.Instant
  * share one PendingIntent template, so a broadcast (rather than launching the
  * Activity directly) lets each row's fill-in intent pick a different action —
  * the checkbox marks the schedule complete in place, the rest of the row
- * opens the app — without leaving the home screen for the checkbox case.
+ * opens that schedule's edit screen.
  */
 class ScheduleWidgetActionReceiver : BroadcastReceiver() {
 
@@ -39,6 +39,8 @@ class ScheduleWidgetActionReceiver : BroadcastReceiver() {
             }
             ACTION_OPEN -> {
                 val openIntent = Intent(context, MainActivity::class.java).apply {
+                    val scheduleId = intent.getLongExtra(EXTRA_SCHEDULE_ID, -1L)
+                    if (scheduleId != -1L) putExtra(MainActivity.EXTRA_EDIT_SCHEDULE_ID, scheduleId)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
                 context.startActivity(openIntent)

@@ -98,10 +98,9 @@ private class ScheduleRemoteViewsFactory(
                 )
                 setTextColor(R.id.widget_item_date, if (schedule.isOverdue()) colors.error else colors.muted)
 
-                val openFillIntent = Intent().putExtra(
-                    ScheduleWidgetActionReceiver.EXTRA_ACTION,
-                    ScheduleWidgetActionReceiver.ACTION_OPEN,
-                )
+                val openFillIntent = Intent()
+                    .putExtra(ScheduleWidgetActionReceiver.EXTRA_ACTION, ScheduleWidgetActionReceiver.ACTION_OPEN)
+                    .putExtra(ScheduleWidgetActionReceiver.EXTRA_SCHEDULE_ID, schedule.id)
                 setOnClickFillInIntent(R.id.widget_item_root, openFillIntent)
 
                 val completeFillIntent = Intent()

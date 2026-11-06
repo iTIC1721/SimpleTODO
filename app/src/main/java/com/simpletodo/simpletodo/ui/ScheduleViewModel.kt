@@ -29,11 +29,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 
-// Pushes RemoteViews directly through AppWidgetManager (see ScheduleWidgetUpdater),
-// so a refresh lands on the home screen essentially immediately. Runs on its
-// own app-lifetime scope, not viewModelScope, so it isn't cancelled if the
-// widget's "+" button opens a fresh Activity that finishes right after saving.
-private val widgetRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+// App-lifetime scope for schedule writes and widget refreshes. Screens opened
+// from the widget (its "+" button or a row) finish the Activity right after
+// saving, which clears the ViewModel and would cancel work in viewModelScope
+// before the database write or the widget refresh completes.
+private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScheduleViewModel(application: Application) : AndroidViewModel(application) {
@@ -88,7 +88,7 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     fun addSchedule(title: String, date: LocalDate, time: LocalTime?, isImportant: Boolean) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return
-        viewModelScope.launch {
+        appScope.launch {
             val schedule = Schedule(title = trimmed, date = date, time = time, isImportant = isImportant)
             val id = dao.insert(schedule)
             AlarmScheduler.schedule(getApplication(), schedule.copy(id = id))
@@ -99,7 +99,7 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     fun updateSchedule(original: Schedule, title: String, date: LocalDate, time: LocalTime?, isImportant: Boolean) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return
-        viewModelScope.launch {
+        appScope.launch {
             val updated = original.copy(title = trimmed, date = date, time = time, isImportant = isImportant)
             dao.update(updated)
             AlarmScheduler.cancel(getApplication(), original.id)
@@ -107,6 +107,8 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
             refreshWidget()
         }
     }
+
+    suspend fun findSchedule(id: Long): Schedule? = dao.getScheduleById(id)
 
     fun completeSchedule(schedule: Schedule) {
         viewModelScope.launch {
@@ -174,7 +176,7 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
 
     private fun refreshWidget() {
         val context = getApplication<Application>()
-        widgetRefreshScope.launch {
+        appScope.launch {
             ScheduleWidgetUpdater.updateAll(context)
         }
     }

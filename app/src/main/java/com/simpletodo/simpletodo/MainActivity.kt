@@ -10,8 +10,11 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,6 +63,7 @@ class MainActivity : ComponentActivity() {
         ThemeState.set(ThemePreferences(this).themeMode)
 
         val openAddScreen = intent?.getBooleanExtra(EXTRA_OPEN_ADD, false) ?: false
+        val editScheduleId = intent?.getLongExtra(EXTRA_EDIT_SCHEDULE_ID, -1L)?.takeIf { it != -1L }
         setContent {
             val themeMode by ThemeState.mode.collectAsState()
             val darkTheme = when (themeMode) {
@@ -82,6 +86,7 @@ class MainActivity : ComponentActivity() {
                 ScheduleApp(
                     modifier = Modifier.fillMaxSize(),
                     startOnAddScreen = openAddScreen,
+                    startEditScheduleId = editScheduleId,
                     onExit = { finish() },
                 )
             }
@@ -90,10 +95,13 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_ADD = "com.simpletodo.simpletodo.EXTRA_OPEN_ADD"
+        const val EXTRA_EDIT_SCHEDULE_ID = "com.simpletodo.simpletodo.EXTRA_EDIT_SCHEDULE_ID"
     }
 }
 
 private sealed interface Screen {
+    /** Looking up the schedule a widget row asked to open. */
+    data object Loading : Screen
     data object List : Screen
     data object Add : Screen
     data object Settings : Screen
@@ -108,21 +116,39 @@ private sealed interface Screen {
 fun ScheduleApp(
     modifier: Modifier = Modifier,
     startOnAddScreen: Boolean = false,
+    startEditScheduleId: Long? = null,
     onExit: () -> Unit = {},
 ) {
     val viewModel: ScheduleViewModel = viewModel()
-    var screen by remember { mutableStateOf<Screen>(if (startOnAddScreen) Screen.Add else Screen.List) }
+    var screen by remember {
+        mutableStateOf<Screen>(
+            when {
+                startOnAddScreen -> Screen.Add
+                startEditScheduleId != null -> Screen.Loading
+                else -> Screen.List
+            },
+        )
+    }
+    // A widget row was tapped: open that schedule's edit screen. If it was
+    // completed or deleted in the meantime, fall back to the list.
+    if (startEditScheduleId != null) {
+        LaunchedEffect(startEditScheduleId) {
+            val schedule = viewModel.findSchedule(startEditScheduleId)
+            screen = if (schedule != null && !schedule.isCompleted) Screen.Edit(schedule) else Screen.List
+        }
+    }
     // Held here rather than inside the list screen, so returning from an
     // add/edit screen lands back on the tab the user came from.
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
-    // Add was reached directly from the widget's + button, not from the app's
-    // own list screen — there's nothing to "go back" to inside the app, so
-    // cancelling/saving should return to the home screen instead of surfacing
-    // the app's main list.
-    val exitInsteadOfList = startOnAddScreen
+    // Add/edit was reached directly from the widget (its + button or a row),
+    // not from the app's own list screen — there's nothing to "go back" to
+    // inside the app, so cancelling/saving returns to the home screen instead
+    // of surfacing the app's main list.
+    val exitInsteadOfList = startOnAddScreen || startEditScheduleId != null
 
     when (val current = screen) {
+        Screen.Loading -> Box(modifier.background(MaterialTheme.colorScheme.background))
         Screen.List -> ScheduleListScreen(
             viewModel = viewModel,
             selectedTab = selectedTab,
@@ -144,7 +170,7 @@ fun ScheduleApp(
             onSave = { title, date, time, isImportant ->
                 viewModel.updateSchedule(current.schedule, title, date, time, isImportant)
             },
-            onBack = { screen = Screen.List },
+            onBack = { if (exitInsteadOfList) onExit() else screen = Screen.List },
             modifier = modifier,
         )
         Screen.Settings -> SettingsScreen(
