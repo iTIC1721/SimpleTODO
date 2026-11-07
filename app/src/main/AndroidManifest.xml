@@ -53,6 +53,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".notification.NotificationActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".notification.DailyBriefingReceiver"
             android:exported="false" />
 

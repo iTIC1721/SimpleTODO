@@ -7,10 +7,10 @@ import android.content.Intent
 import com.simpletodo.simpletodo.data.AlarmPreferences
 import com.simpletodo.simpletodo.data.AppDatabase
 import com.simpletodo.simpletodo.data.Schedule
+import kotlinx.coroutines.flow.first
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import kotlinx.coroutines.flow.first
 
 /**
  * Two separate reminder mechanisms (기획서 3.3, revised): every day at a
@@ -27,6 +27,7 @@ object AlarmScheduler {
     fun schedule(context: Context, schedule: Schedule) {
         val time = schedule.time ?: return
         val preferences = AlarmPreferences(context)
+        if (!preferences.scheduleAlertEnabled) return
         val triggerDateTime = LocalDateTime.of(schedule.date, time).minusMinutes(preferences.leadMinutes.toLong())
         val triggerMillis = triggerDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
         if (triggerMillis <= System.currentTimeMillis()) return

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon: the app's checkbox mark as a single-color silhouette
+     (a rounded square with the check cut out), since small icons are drawn
+     from alpha only. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M7,3h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4H7a4,4 0 0 1 -4,-4V7a4,4 0 0 1 4,-4z M6.6,12.4 L8.0,11.0 L10.6,13.6 L16.0,8.2 L17.4,9.6 L10.6,16.4 Z" />
+</vector>

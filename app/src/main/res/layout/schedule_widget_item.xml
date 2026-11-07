@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Colors are set here from day/night resources so the home screen can
+     re-resolve them on a system theme switch. Where a row's color depends on
+     its data (important title, overdue date) there are two pre-colored views
+     and the factory shows one; with a forced light/dark app theme it also
+     overrides the colors in code. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_item_root"
     android:layout_width="match_parent"
@@ -15,6 +20,7 @@
         android:layout_height="32dp"
         android:padding="5dp"
         android:src="@drawable/widget_checkbox"
+        android:tint="@color/widget_muted"
         android:contentDescription="@string/widget_complete" />
 
     <LinearLayout
@@ -28,15 +34,39 @@
             android:id="@+id/widget_item_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="@color/widget_text"
             android:textSize="14sp"
             android:maxLines="1"
             android:ellipsize="end" />
 
         <TextView
+            android:id="@+id/widget_item_title_important"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_accent"
+            android:textSize="14sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/widget_item_date"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="12sp" />
+            android:textColor="@color/widget_muted"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_item_date_overdue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_error"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
 
     </LinearLayout>
 
@@ -46,6 +76,7 @@
         android:layout_height="28dp"
         android:padding="7dp"
         android:src="@drawable/ic_widget_star"
+        android:tint="@color/widget_accent"
         android:visibility="gone"
         android:contentDescription="@string/widget_important" />
 

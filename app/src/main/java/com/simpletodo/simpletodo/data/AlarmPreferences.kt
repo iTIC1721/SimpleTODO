@@ -24,6 +24,11 @@ class AlarmPreferences(context: Context) {
         get() = prefs.getInt(KEY_LEAD_MINUTES, DEFAULT_LEAD_MINUTES)
         set(value) = prefs.edit { putInt(KEY_LEAD_MINUTES, value) }
 
+    /** Off ("알림 안 함"): time-specific schedules get no alert of their own, only the briefing. */
+    var scheduleAlertEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SCHEDULE_ALERT_ENABLED, true)
+        set(value) = prefs.edit { putBoolean(KEY_SCHEDULE_ALERT_ENABLED, value) }
+
     val defaultNotifyTime: LocalTime
         get() = LocalTime.of(defaultNotifyHour, defaultNotifyMinute)
 
@@ -32,6 +37,7 @@ class AlarmPreferences(context: Context) {
         private const val KEY_HOUR = "default_notify_hour"
         private const val KEY_MINUTE = "default_notify_minute"
         private const val KEY_LEAD_MINUTES = "lead_minutes"
+        private const val KEY_SCHEDULE_ALERT_ENABLED = "schedule_alert_enabled"
         const val DEFAULT_HOUR = 8
         const val DEFAULT_LEAD_MINUTES = 15
     }

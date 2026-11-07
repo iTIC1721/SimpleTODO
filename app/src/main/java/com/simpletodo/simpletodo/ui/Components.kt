@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -18,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,9 +29,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -120,19 +126,75 @@ fun EmptyState(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Top bar for secondary screens: a back arrow and the screen name. */
+/** Top bar for secondary screens: a back arrow and the screen name, with optional actions on the right. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScreenTopBar(title: String, onBack: () -> Unit, backLabel: String = "뒤로") {
+fun ScreenTopBar(
+    title: String,
+    onBack: () -> Unit,
+    backLabel: String = "뒤로",
+    navigationIcon: ImageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
     TopAppBar(
         title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         navigationIcon = {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = backLabel)
+                Icon(navigationIcon, contentDescription = backLabel)
             }
         },
+        actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
     )
+}
+
+/**
+ * A yes/no question. [destructive] colors the confirm button as an error,
+ * for actions that can't be undone.
+ */
+@Composable
+fun ConfirmDialog(
+    text: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    title: String? = null,
+    dismissLabel: String = "취소",
+    destructive: Boolean = false,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = title?.let { { Text(it, style = MaterialTheme.typography.titleLarge) } },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    confirmLabel,
+                    color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(dismissLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+    )
+}
+
+/**
+ * Shows "[message] · 실행 취소" and returns true if the user tapped 실행 취소.
+ * A snackbar already on screen is dismissed first, so a quick second action
+ * replaces the first one's offer instead of queueing behind it.
+ */
+suspend fun SnackbarHostState.showUndo(message: String): Boolean {
+    currentSnackbarData?.dismiss()
+    return showSnackbar(
+        message = message,
+        actionLabel = "실행 취소",
+        withDismissAction = false,
+        duration = SnackbarDuration.Short,
+    ) == SnackbarResult.ActionPerformed
 }
 
 /** The one primary action on a form screen. */

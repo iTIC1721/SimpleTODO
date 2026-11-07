@@ -183,6 +183,10 @@ fun ScheduleApp(
                 viewModel.updateSchedule(current.schedule, title, date, time, isImportant)
             },
             onBack = { if (exitInsteadOfList) onExit() else screen = Screen.List },
+            onDelete = {
+                viewModel.deleteSchedule(current.schedule)
+                if (exitInsteadOfList) onExit() else screen = Screen.List
+            },
             modifier = modifier,
         )
         Screen.Settings -> SettingsScreen(
@@ -210,6 +214,10 @@ fun ScheduleApp(
                 viewModel.updateReminder(current.reminder, title, days, time)
             },
             onBack = { screen = Screen.List },
+            onDelete = {
+                viewModel.deleteReminder(current.reminder)
+                screen = Screen.List
+            },
             modifier = modifier,
         )
     }

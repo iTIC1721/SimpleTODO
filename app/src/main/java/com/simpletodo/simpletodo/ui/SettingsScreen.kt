@@ -18,36 +18,29 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.simpletodo.simpletodo.backup.BackupManager
 import com.simpletodo.simpletodo.backup.InvalidBackupException
@@ -58,7 +51,6 @@ import com.simpletodo.simpletodo.notification.AlarmSettings
 import com.simpletodo.simpletodo.ui.theme.ButtonShape
 import com.simpletodo.simpletodo.ui.theme.mutedText
 import com.simpletodo.simpletodo.widget.ScheduleWidgetUpdater
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -76,7 +68,9 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
     val coroutineScope = rememberCoroutineScope()
 
     var notifyTime by remember { mutableStateOf(preferences.defaultNotifyTime) }
-    var leadMinutesText by remember { mutableStateOf(preferences.leadMinutes.toString()) }
+    // null = "알림 안 함"
+    var scheduleAlert by remember { mutableStateOf(preferences.scheduleAlertOrNull()) }
+    var showScheduleAlertPicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     val exactAlarmGranted = remember { canScheduleExactAlarms(context) }
     var themeMode by remember { mutableStateOf(themePreferences.themeMode) }
@@ -86,20 +80,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
     BackHandler(onBack = onBack)
 
     // Every setting applies as soon as it changes — there is no save button.
-    // The lead time is applied once typing pauses, and again as the screen
-    // closes in case it closes first. An empty field keeps the stored value.
-    val focusManager = LocalFocusManager.current
-    val latestLeadMinutesText by rememberUpdatedState(leadMinutesText)
-    fun applyLeadMinutes(text: String) {
-        text.toIntOrNull()?.let { AlarmSettings.setLeadMinutes(context, it) }
-    }
-    LaunchedEffect(leadMinutesText) {
-        delay(600)
-        applyLeadMinutes(leadMinutesText)
-    }
-    DisposableEffect(Unit) {
-        onDispose { applyLeadMinutes(latestLeadMinutesText) }
-    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -166,18 +146,10 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
                     title = "시간 지정 일정 알림",
                     description = "브리핑과 별도로 지정 시각 전 추가 알림 발송",
                 ) {
-                    OutlinedTextField(
-                        value = leadMinutesText,
-                        onValueChange = { leadMinutesText = it.filter(Char::isDigit).take(4) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                        singleLine = true,
-                        suffix = { Text("분 전", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        shape = ButtonShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        ),
-                        modifier = Modifier.width(116.dp),
+                    ChoiceChip(
+                        label = scheduleAlertLabel(scheduleAlert),
+                        selected = false,
+                        onClick = { showScheduleAlertPicker = true },
                     )
                 }
                 if (!exactAlarmGranted) {
@@ -252,7 +224,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
                                 // Settings were restored too — refresh this screen's
                                 // copies so they show (and keep) the restored values.
                                 notifyTime = preferences.defaultNotifyTime
-                                leadMinutesText = preferences.leadMinutes.toString()
+                                scheduleAlert = preferences.scheduleAlertOrNull()
                                 themeMode = themePreferences.themeMode
                                 "복원이 완료되었습니다.\n일정 ${it.scheduleCount}건, 반복 알림 ${it.reminderCount}건"
                             },
@@ -274,6 +246,18 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
         )
     }
 
+    if (showScheduleAlertPicker) {
+        ScheduleAlertDialog(
+            current = scheduleAlert,
+            onSelected = {
+                scheduleAlert = it
+                AlarmSettings.setScheduleAlert(context, it)
+                showScheduleAlertPicker = false
+            },
+            onDismiss = { showScheduleAlertPicker = false },
+        )
+    }
+
     if (showTimePicker) {
         AppTimePickerDialog(
             initialTime = notifyTime,
@@ -284,6 +268,54 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
             onDismiss = { showTimePicker = false },
         )
     }
+}
+
+private fun AlarmPreferences.scheduleAlertOrNull(): Int? = if (scheduleAlertEnabled) leadMinutes else null
+
+/** "정시", "15분 전", "1시간 전", or "알림 안 함" for null. */
+private fun scheduleAlertLabel(leadMinutes: Int?): String = when {
+    leadMinutes == null -> "알림 안 함"
+    leadMinutes == 0 -> "정시"
+    leadMinutes % 60 == 0 -> "${leadMinutes / 60}시간 전"
+    else -> "${leadMinutes}분 전"
+}
+
+private val scheduleAlertPresets = listOf(0, 5, 10, 15, 30, 60)
+
+/**
+ * One tap picks and applies. A value set by an older version that isn't a
+ * preset (e.g. 20) stays in the list so it can still be seen and kept.
+ */
+@Composable
+private fun ScheduleAlertDialog(current: Int?, onSelected: (Int?) -> Unit, onDismiss: () -> Unit) {
+    val options: List<Int?> = (scheduleAlertPresets + listOfNotNull(current)).distinct().sorted() + null
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("시간 지정 일정 알림", style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Column {
+                options.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ButtonShape)
+                            .selectable(selected = option == current, role = Role.RadioButton) { onSelected(option) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = option == current, onClick = null, modifier = Modifier.padding(12.dp))
+                        Text(scheduleAlertLabel(option), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+    )
 }
 
 @Composable

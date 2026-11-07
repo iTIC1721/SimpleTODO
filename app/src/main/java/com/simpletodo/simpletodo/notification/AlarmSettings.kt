@@ -15,8 +15,8 @@ import java.time.LocalTime
  * and re-registers every alarm that depends on it. The settings screen has no
  * save button, so nothing here waits for one.
  *
- * Rescheduling runs on an app-lifetime scope — the lead time is applied as the
- * settings screen closes, which would cancel a screen-scoped coroutine.
+ * Rescheduling runs on an app-lifetime scope, so it finishes even if the
+ * settings screen closes right after a change.
  */
 object AlarmSettings {
 
@@ -34,12 +34,17 @@ object AlarmSettings {
         scope.launch { rescheduleLock.withLock { RecurringReminderScheduler.rescheduleAll(app) } }
     }
 
-    /** Changes how early time-specific schedules alert, for existing schedules as well as new ones. */
-    fun setLeadMinutes(context: Context, minutes: Int) {
+    /**
+     * Changes how early time-specific schedules alert — or, with null, turns
+     * those alerts off — for existing schedules as well as new ones.
+     */
+    fun setScheduleAlert(context: Context, leadMinutes: Int?) {
         val app = context.applicationContext
         val preferences = AlarmPreferences(app)
-        if (preferences.leadMinutes == minutes) return
-        preferences.leadMinutes = minutes
+        val enabled = leadMinutes != null
+        if (preferences.scheduleAlertEnabled == enabled && (leadMinutes == null || preferences.leadMinutes == leadMinutes)) return
+        preferences.scheduleAlertEnabled = enabled
+        if (leadMinutes != null) preferences.leadMinutes = leadMinutes
         scope.launch { rescheduleLock.withLock { AlarmScheduler.rescheduleAll(app) } }
     }
 }

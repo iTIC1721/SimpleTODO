@@ -1,5 +1,6 @@
 package com.simpletodo.simpletodo.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -24,12 +27,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.simpletodo.simpletodo.data.RecurringReminder
 import com.simpletodo.simpletodo.data.Schedule
 import com.simpletodo.simpletodo.ui.theme.mutedText
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 // Completed schedules live on their own screen, reached from the bottom of
@@ -60,8 +66,22 @@ fun ScheduleListScreen(
     // A tab index saved by an older build (which had three tabs) may be out of range.
     val tab = selectedTab.coerceIn(0, tabs.lastIndex)
 
+    // Back from 반복 알림 goes to 일정 first; from 일정 it leaves the app.
+    BackHandler(enabled = tab != 0) { onTabSelected(0) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    // Completing removes the row from the list at once, so offer a way back.
+    val completeWithUndo: (Schedule) -> Unit = { schedule ->
+        viewModel.completeSchedule(schedule)
+        scope.launch {
+            if (snackbarHostState.showUndo("완료 처리되었습니다.")) viewModel.restoreSchedule(schedule)
+        }
+    }
+
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = if (tab == REMINDER_TAB) onAddReminderClick else onAddClick,
@@ -109,13 +129,12 @@ fun ScheduleListScreen(
                     reminders = recurringReminders,
                     onToggleEnabled = viewModel::setReminderEnabled,
                     onEdit = onReminderClick,
-                    onDelete = viewModel::deleteReminder,
                     modifier = Modifier.weight(1f),
                 )
                 else -> CurrentScheduleTab(
                     schedules = currentSchedules,
                     completedCount = completedCount,
-                    onComplete = viewModel::completeSchedule,
+                    onComplete = completeWithUndo,
                     onEdit = onScheduleClick,
                     onOpenCompleted = onCompletedClick,
                     modifier = Modifier.weight(1f),

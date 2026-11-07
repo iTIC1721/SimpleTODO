@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/widget_background_light"
+    android:background="@drawable/widget_background"
     android:paddingStart="12dp"
     android:paddingEnd="8dp"
     android:paddingTop="8dp"
@@ -24,6 +24,7 @@
             android:paddingStart="4dp"
             android:text="@string/widget_title"
             android:fontFamily="sans-serif-medium"
+            android:textColor="@color/widget_text"
             android:textSize="15sp" />
 
         <ImageView
@@ -32,6 +33,7 @@
             android:layout_height="36dp"
             android:padding="8dp"
             android:src="@drawable/ic_widget_add"
+            android:tint="@color/widget_text"
             android:contentDescription="@string/widget_add" />
     </LinearLayout>
 
@@ -55,6 +57,7 @@
             android:layout_marginTop="8dp"
             android:paddingStart="4dp"
             android:text="@string/widget_empty"
+            android:textColor="@color/widget_muted"
             android:textSize="13sp" />
 
     </FrameLayout>

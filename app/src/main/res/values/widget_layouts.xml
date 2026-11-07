@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The same widget layouts under other ids, used while the app forces a
+     light or dark theme. The home screen reuses existing views when an
+     update has the same layout id, so a color set in code under a forced
+     theme would otherwise stick after switching back to "시스템 기본"
+     (which leaves colors to the layouts' resources). A different id makes
+     it inflate fresh views instead. -->
+<resources>
+    <item name="schedule_widget_forced" type="layout">@layout/schedule_widget</item>
+    <item name="schedule_widget_item_forced" type="layout">@layout/schedule_widget_item</item>
+    <item name="schedule_widget_header_row_forced" type="layout">@layout/schedule_widget_header_row</item>
+</resources>

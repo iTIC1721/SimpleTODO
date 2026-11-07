@@ -9,6 +9,7 @@ import android.net.Uri
 import android.widget.RemoteViews
 import com.simpletodo.simpletodo.MainActivity
 import com.simpletodo.simpletodo.R
+import com.simpletodo.simpletodo.data.ThemeMode
 
 /**
  * Builds RemoteViews and pushes them straight through AppWidgetManager — no
@@ -37,18 +38,26 @@ object ScheduleWidgetUpdater {
     }
 
     private fun buildRemoteViews(context: Context, appWidgetId: Int): RemoteViews {
-        val isDark = resolveWidgetIsDark(context)
-        val colors = widgetColorsFor(isDark)
-        val views = RemoteViews(context.packageName, R.layout.schedule_widget)
+        val themeMode = widgetThemeMode(context)
+        val forcedColors = forcedWidgetColors(themeMode)
+        // Forced themes use an alias layout id; see res/values/widget_layouts.xml.
+        val layout = if (forcedColors == null) R.layout.schedule_widget else R.layout.schedule_widget_forced
+        val views = RemoteViews(context.packageName, layout)
 
         views.setInt(
             R.id.widget_root,
             "setBackgroundResource",
-            if (isDark) R.drawable.widget_background_dark else R.drawable.widget_background_light,
+            when (themeMode) {
+                ThemeMode.SYSTEM -> R.drawable.widget_background
+                ThemeMode.LIGHT -> R.drawable.widget_background_light
+                ThemeMode.DARK -> R.drawable.widget_background_dark
+            },
         )
-        views.setTextColor(R.id.widget_title_label, colors.text)
-        views.setInt(R.id.widget_add_button, "setColorFilter", colors.text)
-        views.setTextColor(R.id.widget_empty_text, colors.muted)
+        forcedColors?.let { colors ->
+            views.setTextColor(R.id.widget_title_label, colors.text)
+            views.setInt(R.id.widget_add_button, "setColorFilter", colors.text)
+            views.setTextColor(R.id.widget_empty_text, colors.muted)
+        }
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -87,12 +96,12 @@ object ScheduleWidgetUpdater {
 
         val serviceIntent = Intent(context, ScheduleWidgetService::class.java).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            putExtra(ScheduleWidgetService.EXTRA_IS_DARK, isDark)
+            putExtra(ScheduleWidgetService.EXTRA_THEME_MODE, themeMode.name)
             // RemoteViewsService caches its factory by this Intent's identity, which
-            // is compared by data Uri — not by extras. Folding isDark into the Uri
-            // forces a fresh factory (and thus fresh colors) whenever theme changes,
+            // is compared by data Uri — not by extras. Folding the theme into the Uri
+            // forces a fresh factory (and thus fresh colors) whenever it changes,
             // instead of silently reusing a factory built under the old theme.
-            data = Uri.parse("widget://com.simpletodo.simpletodo/$appWidgetId?dark=$isDark")
+            data = Uri.parse("widget://com.simpletodo.simpletodo/$appWidgetId?theme=${themeMode.name}")
         }
         views.setRemoteAdapter(R.id.widget_list_view, serviceIntent)
         views.setEmptyView(R.id.widget_list_view, R.id.widget_empty_text)

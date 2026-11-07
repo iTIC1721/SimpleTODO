@@ -11,22 +11,32 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.simpletodo.simpletodo.data.Schedule
 import com.simpletodo.simpletodo.ui.theme.ButtonShape
@@ -40,6 +50,7 @@ fun AddScheduleScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     initialSchedule: Schedule? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     var title by rememberSaveable { mutableStateOf(initialSchedule?.title ?: "") }
     var date by rememberSaveable { mutableStateOf(initialSchedule?.date ?: LocalDate.now()) }
@@ -48,8 +59,26 @@ fun AddScheduleScreen(
     var important by rememberSaveable { mutableStateOf(initialSchedule?.isImportant ?: false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    BackHandler(onBack = onBack)
+    // Leaving with unsaved edits asks first. A new schedule counts as edited
+    // once it has a title; an existing one once any field differs.
+    val edited = if (initialSchedule == null) {
+        title.isNotBlank()
+    } else {
+        title != initialSchedule.title || date != initialSchedule.date ||
+            (if (timeEnabled) time else null) != initialSchedule.time ||
+            important != initialSchedule.isImportant
+    }
+    val requestExit = { if (edited) showDiscardConfirm = true else onBack() }
+    BackHandler(onBack = requestExit)
+
+    val focusManager = LocalFocusManager.current
+    val titleFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (initialSchedule == null) titleFocus.requestFocus()
+    }
 
     val today = LocalDate.now()
     val tomorrow = today.plusDays(1)
@@ -59,8 +88,15 @@ fun AddScheduleScreen(
         topBar = {
             ScreenTopBar(
                 title = if (initialSchedule != null) "일정 수정" else "일정 추가",
-                onBack = onBack,
+                onBack = requestExit,
                 backLabel = "취소",
+                actions = {
+                    if (onDelete != null) {
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(Icons.Outlined.Delete, contentDescription = "삭제", tint = MaterialTheme.mutedText)
+                        }
+                    }
+                },
             )
         },
         bottomBar = {
@@ -91,14 +127,19 @@ fun AddScheduleScreen(
         ) {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                // A title is one line of text: Enter finishes typing instead of adding a line break.
+                onValueChange = { title = it.replace('\n', ' ') },
                 label = { Text("일정 내용") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 shape = ButtonShape,
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                     unfocusedLabelColor = MaterialTheme.mutedText,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(titleFocus),
             )
 
             FieldGroup(label = "날짜") {
@@ -134,6 +175,34 @@ fun AddScheduleScreen(
                 )
             }
         }
+    }
+
+    if (showDiscardConfirm) {
+        ConfirmDialog(
+            text = "저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나가시겠습니까?",
+            confirmLabel = "나가기",
+            dismissLabel = "계속 편집",
+            destructive = true,
+            onConfirm = {
+                showDiscardConfirm = false
+                onBack()
+            },
+            onDismiss = { showDiscardConfirm = false },
+        )
+    }
+
+    if (showDeleteConfirm && onDelete != null) {
+        ConfirmDialog(
+            title = "일정 삭제",
+            text = "이 일정을 삭제하시겠습니까?",
+            confirmLabel = "삭제",
+            destructive = true,
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
     }
 
     if (showDatePicker) {

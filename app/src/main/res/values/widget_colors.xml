@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget colors for the app's "시스템 기본" theme. The home screen resolves
+     these itself (values vs values-night), so the widget follows a system
+     dark-mode switch at once. Mirrors the graphite ramp in ui/theme/Color.kt
+     and the forced light/dark palettes in widget/WidgetTheme.kt. -->
+<resources>
+    <color name="widget_surface">#FFFFFFFF</color>
+    <color name="widget_text">#FF171717</color>
+    <color name="widget_muted">#FF737373</color>
+    <color name="widget_accent">#FF624DE6</color>
+    <color name="widget_error">#FFDC2626</color>
+</resources>

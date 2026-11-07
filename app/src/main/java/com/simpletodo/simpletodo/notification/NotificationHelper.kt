@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.simpletodo.simpletodo.MainActivity
+import com.simpletodo.simpletodo.R
 import com.simpletodo.simpletodo.data.RecurringReminder
 import com.simpletodo.simpletodo.data.Schedule
 import java.time.format.DateTimeFormatter
@@ -60,12 +61,13 @@ object NotificationHelper {
         val contentText = schedule.time?.let { "오늘 ${it.format(timeFormatter)} 일정" } ?: "오늘 일정"
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(schedule.title)
             .setContentText(contentText)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(openAppPendingIntent(context, schedule.id.toInt()))
+            .addAction(R.drawable.ic_notification, "완료", completePendingIntent(context, schedule.id))
             .build()
 
         NotificationManagerCompat.from(context).notify(schedule.id.toInt(), notification)
@@ -83,7 +85,7 @@ object NotificationHelper {
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("오늘 일정 ${schedules.size}개")
             .setContentText(schedules.joinToString(", ") { it.title })
             .setStyle(inboxStyle)
@@ -102,7 +104,7 @@ object NotificationHelper {
 
         val notificationId = RECURRING_NOTIFICATION_ID_BASE + reminder.id.toInt()
         val notification = NotificationCompat.Builder(context, RECURRING_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.title)
             .setContentText("반복 알림")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -122,6 +124,19 @@ object NotificationHelper {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+
+    private fun completePendingIntent(context: Context, scheduleId: Long): PendingIntent {
+        val intent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_COMPLETE
+            putExtra(NotificationActionReceiver.EXTRA_SCHEDULE_ID, scheduleId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            scheduleId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
 
     private fun openAppPendingIntent(context: Context, requestCode: Int): PendingIntent {
         val openIntent = Intent(context, MainActivity::class.java).apply {

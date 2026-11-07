@@ -49,6 +49,9 @@ interface ScheduleDao {
     @Delete
     suspend fun delete(schedule: Schedule)
 
+    @Delete
+    suspend fun deleteList(schedules: List<Schedule>)
+
     @Query("UPDATE schedule SET isCompleted = 1, completedAt = :completedAt WHERE id = :id")
     suspend fun markCompleted(id: Long, completedAt: Instant = Instant.now())
 

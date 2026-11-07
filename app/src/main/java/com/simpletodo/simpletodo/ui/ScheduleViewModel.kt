@@ -77,9 +77,11 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         _searchKeyword.value = keyword
     }
 
+    /** A range picked backwards (end before start) is swapped rather than matching nothing. */
     fun updateSearchDateRange(start: LocalDate?, end: LocalDate?) {
-        _searchStartDate.value = start
-        _searchEndDate.value = end
+        val swap = start != null && end != null && end.isBefore(start)
+        _searchStartDate.value = if (swap) end else start
+        _searchEndDate.value = if (swap) start else end
     }
 
     fun clearSearch() {
@@ -113,9 +115,10 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
 
     suspend fun findSchedule(id: Long): Schedule? = dao.getScheduleById(id)
 
-    fun completeSchedule(schedule: Schedule) {
+    /** [at] lets an undone "완료 취소" put back the original completion time. */
+    fun completeSchedule(schedule: Schedule, at: Instant = Instant.now()) {
         viewModelScope.launch {
-            dao.markCompleted(schedule.id, Instant.now())
+            dao.markCompleted(schedule.id, at)
             AlarmScheduler.cancel(getApplication(), schedule.id)
             refreshWidget()
         }
@@ -129,9 +132,30 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** App scope: deleting from a widget-opened edit screen finishes the Activity right away. */
     fun deleteSchedule(schedule: Schedule) {
-        viewModelScope.launch {
+        appScope.launch {
             dao.delete(schedule)
+            AlarmScheduler.cancel(getApplication(), schedule.id)
+            refreshWidget()
+        }
+    }
+
+    fun deleteSchedules(schedules: List<Schedule>) {
+        if (schedules.isEmpty()) return
+        appScope.launch {
+            dao.deleteList(schedules)
+            schedules.forEach { AlarmScheduler.cancel(getApplication(), it.id) }
+            refreshWidget()
+        }
+    }
+
+    /** Undo of a delete: puts the rows back with their original ids, and their alarms. */
+    fun undoDelete(schedules: List<Schedule>) {
+        appScope.launch {
+            dao.insertAll(schedules)
+            schedules.filterNot { it.isCompleted }.forEach { AlarmScheduler.schedule(getApplication(), it) }
+            refreshWidget()
         }
     }
 

@@ -17,6 +17,7 @@ data class BackupSettings(
     val briefingTime: LocalTime,
     val leadMinutes: Int,
     val themeMode: ThemeMode,
+    val scheduleAlertEnabled: Boolean = true,
 )
 
 data class BackupData(
@@ -50,7 +51,8 @@ object BackupFormat {
                 JSONObject()
                     .put("briefingTime", settings.briefingTime.toString())
                     .put("leadMinutes", settings.leadMinutes)
-                    .put("theme", settings.themeMode.name),
+                    .put("theme", settings.themeMode.name)
+                    .put("scheduleAlertEnabled", settings.scheduleAlertEnabled),
             )
         }
 
@@ -102,6 +104,8 @@ object BackupFormat {
                     briefingTime = LocalTime.parse(s.getString("briefingTime")),
                     leadMinutes = s.getInt("leadMinutes").coerceAtLeast(0),
                     themeMode = runCatching { ThemeMode.valueOf(s.getString("theme")) }.getOrDefault(ThemeMode.SYSTEM),
+                    // Added in 1.2.0; older backups don't have it and had alerts on.
+                    scheduleAlertEnabled = s.optBoolean("scheduleAlertEnabled", true),
                 )
             }
 

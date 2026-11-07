@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Two pre-colored labels: the factory shows the error-colored one for 기한 지남. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -12,6 +13,16 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="sans-serif-medium"
+        android:textColor="@color/widget_muted"
         android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/widget_header_label_overdue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/widget_error"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
 </LinearLayout>

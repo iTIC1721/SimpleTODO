@@ -7,6 +7,7 @@ import android.widget.RemoteViewsService
 import com.simpletodo.simpletodo.R
 import com.simpletodo.simpletodo.data.AppDatabase
 import com.simpletodo.simpletodo.data.Schedule
+import com.simpletodo.simpletodo.data.ThemeMode
 import com.simpletodo.simpletodo.data.scheduleBucketLabel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -18,12 +19,13 @@ import java.util.Locale
 
 class ScheduleWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-        val isDark = intent.getBooleanExtra(EXTRA_IS_DARK, false)
-        return ScheduleRemoteViewsFactory(applicationContext, isDark)
+        val themeMode = runCatching { ThemeMode.valueOf(intent.getStringExtra(EXTRA_THEME_MODE)!!) }
+            .getOrDefault(ThemeMode.SYSTEM)
+        return ScheduleRemoteViewsFactory(applicationContext, forcedWidgetColors(themeMode))
     }
 
     companion object {
-        const val EXTRA_IS_DARK = "com.simpletodo.simpletodo.widget.EXTRA_IS_DARK"
+        const val EXTRA_THEME_MODE = "com.simpletodo.simpletodo.widget.EXTRA_THEME_MODE"
     }
 }
 
@@ -43,10 +45,15 @@ private sealed interface WidgetRow {
  */
 private class ScheduleRemoteViewsFactory(
     private val context: Context,
-    private val isDark: Boolean,
+    /** Null under "시스템 기본": the layouts' day/night resources apply. */
+    private val colors: WidgetColors?,
 ) : RemoteViewsService.RemoteViewsFactory {
 
-    private val colors = widgetColorsFor(isDark)
+    // Forced themes use alias layout ids; see res/values/widget_layouts.xml.
+    private val headerLayout =
+        if (colors == null) R.layout.schedule_widget_header_row else R.layout.schedule_widget_header_row_forced
+    private val itemLayout = if (colors == null) R.layout.schedule_widget_item else R.layout.schedule_widget_item_forced
+
     private var rows: List<WidgetRow> = emptyList()
 
     override fun onCreate() = Unit
@@ -79,24 +86,32 @@ private class ScheduleRemoteViewsFactory(
 
     override fun getViewAt(position: Int): RemoteViews {
         return when (val row = rows[position]) {
-            is WidgetRow.Header -> RemoteViews(context.packageName, R.layout.schedule_widget_header_row).apply {
-                setTextViewText(R.id.widget_header_label, row.label)
-                setTextColor(R.id.widget_header_label, if (row.label == OVERDUE_BUCKET) colors.error else colors.muted)
+            is WidgetRow.Header -> RemoteViews(context.packageName, headerLayout).apply {
+                val overdue = row.label == OVERDUE_BUCKET
+                showOneOf(R.id.widget_header_label, R.id.widget_header_label_overdue, useSecond = overdue)
+                    .let { label ->
+                        setTextViewText(label, row.label)
+                        colors?.let { setTextColor(label, if (overdue) it.error else it.muted) }
+                    }
             }
-            is WidgetRow.Item -> RemoteViews(context.packageName, R.layout.schedule_widget_item).apply {
+            is WidgetRow.Item -> RemoteViews(context.packageName, itemLayout).apply {
                 val schedule = row.schedule
-                setTextViewText(R.id.widget_item_title, schedule.title)
-                setTextColor(R.id.widget_item_title, if (schedule.isImportant) colors.accent else colors.text)
-                setInt(R.id.widget_item_checkbox, "setColorFilter", colors.muted)
+                val title = showOneOf(R.id.widget_item_title, R.id.widget_item_title_important, schedule.isImportant)
+                setTextViewText(title, schedule.title)
                 setViewVisibility(R.id.widget_item_star, if (schedule.isImportant) View.VISIBLE else View.GONE)
-                setInt(R.id.widget_item_star, "setColorFilter", colors.accent)
+
+                val overdue = schedule.isOverdue()
+                val date = showOneOf(R.id.widget_item_date, R.id.widget_item_date_overdue, overdue)
                 val dateText = schedule.date.format(widgetDateFormatter)
                 val timeText = schedule.time?.format(widgetTimeFormatter)
-                setTextViewText(
-                    R.id.widget_item_date,
-                    if (timeText != null) "$dateText · $timeText" else dateText,
-                )
-                setTextColor(R.id.widget_item_date, if (schedule.isOverdue()) colors.error else colors.muted)
+                setTextViewText(date, if (timeText != null) "$dateText · $timeText" else dateText)
+
+                colors?.let {
+                    setTextColor(title, if (schedule.isImportant) it.accent else it.text)
+                    setTextColor(date, if (overdue) it.error else it.muted)
+                    setInt(R.id.widget_item_checkbox, "setColorFilter", it.muted)
+                    setInt(R.id.widget_item_star, "setColorFilter", it.accent)
+                }
 
                 val openFillIntent = Intent()
                     .putExtra(ScheduleWidgetActionReceiver.EXTRA_ACTION, ScheduleWidgetActionReceiver.ACTION_OPEN)
@@ -124,6 +139,13 @@ private class ScheduleRemoteViewsFactory(
 }
 
 private const val OVERDUE_BUCKET = "기한 지남"
+
+/** Shows one of two alternately-colored twin views and returns its id. */
+private fun RemoteViews.showOneOf(first: Int, second: Int, useSecond: Boolean): Int {
+    setViewVisibility(first, if (useSecond) View.GONE else View.VISIBLE)
+    setViewVisibility(second, if (useSecond) View.VISIBLE else View.GONE)
+    return if (useSecond) second else first
+}
 
 private fun Schedule.isOverdue(): Boolean {
     val today = LocalDate.now()

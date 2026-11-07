@@ -160,4 +160,24 @@ class ScheduleDaoTest {
 
         assertEquals(listOf("오늘 일정"), result.map { it.title })
     }
+
+    @Test
+    fun deleteListThenInsertAll_restoresTheSameRows() = runBlocking {
+        val today = LocalDate.now()
+        val keepId = dao.insert(Schedule(title = "남는 일정", date = today))
+        val aId = dao.insert(Schedule(title = "지울 일정 1", date = today))
+        val bId = dao.insert(Schedule(title = "지울 일정 2", date = today))
+        dao.markCompleted(aId, Instant.parse("2026-11-01T09:00:00Z"))
+        dao.markCompleted(bId, Instant.parse("2026-11-02T09:00:00Z"))
+        val deleted = listOf(dao.getScheduleById(aId)!!, dao.getScheduleById(bId)!!)
+
+        dao.deleteList(deleted)
+        assertEquals(listOf(keepId), dao.getAllOnce().map { it.id })
+        assertEquals(0, dao.getCompletedCount().first())
+
+        // Undo: the same rows come back with their ids and completion times.
+        dao.insertAll(deleted)
+        assertEquals(deleted, dao.getPastSchedules().first().sortedBy { it.id })
+        assertEquals(2, dao.getCompletedCount().first())
+    }
 }

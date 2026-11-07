@@ -33,6 +33,7 @@ object BackupManager {
                 briefingTime = alarmPrefs.defaultNotifyTime,
                 leadMinutes = alarmPrefs.leadMinutes,
                 themeMode = ThemePreferences(context).themeMode,
+                scheduleAlertEnabled = alarmPrefs.scheduleAlertEnabled,
             ),
         )
         val json = BackupFormat.encode(data, appVersion = appVersion(context))
@@ -70,6 +71,7 @@ object BackupManager {
                 defaultNotifyHour = settings.briefingTime.hour
                 defaultNotifyMinute = settings.briefingTime.minute
                 leadMinutes = settings.leadMinutes
+                scheduleAlertEnabled = settings.scheduleAlertEnabled
             }
             ThemePreferences(context).themeMode = settings.themeMode
             ThemeState.set(settings.themeMode)

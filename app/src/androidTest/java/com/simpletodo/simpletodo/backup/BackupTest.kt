@@ -12,6 +12,7 @@ import com.simpletodo.simpletodo.data.ThemeMode
 import com.simpletodo.simpletodo.data.ThemePreferences
 import com.simpletodo.simpletodo.data.daysOfWeekToMask
 import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
@@ -60,6 +61,17 @@ class BackupTest {
     }
 
     @Test
+    fun scheduleAlertSetting_roundTripsAndIsOnForOlderBackups() {
+        val off = settings.copy(scheduleAlertEnabled = false)
+        val json = BackupFormat.encode(BackupData(schedules, reminders, off))
+        assertEquals(off, BackupFormat.decode(json).settings)
+
+        // A backup from before 1.2.0 has no such key; alerts were always on then.
+        val older = JSONObject(json).apply { getJSONObject("settings").remove("scheduleAlertEnabled") }
+        assertEquals(true, BackupFormat.decode(older.toString()).settings!!.scheduleAlertEnabled)
+    }
+
+    @Test
     fun decode_rejectsForeignJsonAndGarbage() {
         listOf("""{"hello":"world"}""", "not json at all", "").forEach { input ->
             try {
@@ -93,7 +105,9 @@ class BackupTest {
         scheduleDao.deleteAll(); reminderDao.deleteAll()
         scheduleDao.insertAll(schedules)
         reminderDao.insertAll(reminders)
-        AlarmPreferences(context).apply { defaultNotifyHour = 7; defaultNotifyMinute = 30; leadMinutes = 20 }
+        AlarmPreferences(context).apply {
+            defaultNotifyHour = 7; defaultNotifyMinute = 30; leadMinutes = 20; scheduleAlertEnabled = false
+        }
         ThemePreferences(context).themeMode = ThemeMode.DARK
         val exported = BackupManager.export(context, Uri.fromFile(file))
         assertEquals(BackupSummary(2, 2), exported)
@@ -101,7 +115,9 @@ class BackupTest {
         // Different data and settings in place, then restore over them.
         scheduleDao.deleteAll(); reminderDao.deleteAll()
         scheduleDao.insert(Schedule(title = "지워져야 할 일정", date = LocalDate.of(2026, 12, 1)))
-        AlarmPreferences(context).apply { defaultNotifyHour = 9; defaultNotifyMinute = 0; leadMinutes = 5 }
+        AlarmPreferences(context).apply {
+            defaultNotifyHour = 9; defaultNotifyMinute = 0; leadMinutes = 5; scheduleAlertEnabled = true
+        }
         ThemePreferences(context).themeMode = ThemeMode.LIGHT
 
         val restored = BackupManager.restore(context, Uri.fromFile(file))
@@ -111,8 +127,10 @@ class BackupTest {
         assertEquals(reminders, reminderDao.getAllOnce().map { it.copy(id = 0) })
         assertEquals(LocalTime.of(7, 30), AlarmPreferences(context).defaultNotifyTime)
         assertEquals(20, AlarmPreferences(context).leadMinutes)
+        assertEquals(false, AlarmPreferences(context).scheduleAlertEnabled)
         assertEquals(ThemeMode.DARK, ThemePreferences(context).themeMode)
 
+        AlarmPreferences(context).scheduleAlertEnabled = true
         scheduleDao.deleteAll(); reminderDao.deleteAll()
         file.delete()
     }

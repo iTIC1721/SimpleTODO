@@ -8,14 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -36,7 +31,6 @@ fun RecurringReminderTab(
     reminders: List<RecurringReminder>,
     onToggleEnabled: (RecurringReminder, Boolean) -> Unit,
     onEdit: (RecurringReminder) -> Unit,
-    onDelete: (RecurringReminder) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (reminders.isEmpty()) {
@@ -57,7 +51,6 @@ fun RecurringReminderTab(
                 timeText = reminder.time?.toDisplayString() ?: "${briefingTime.toDisplayString()} 브리핑",
                 onToggleEnabled = { onToggleEnabled(reminder, it) },
                 onClick = { onEdit(reminder) },
-                onDelete = { onDelete(reminder) },
             )
             if (index < reminders.lastIndex) {
                 HorizontalDivider(
@@ -75,14 +68,13 @@ private fun RecurringReminderRow(
     timeText: String,
     onToggleEnabled: (Boolean) -> Unit,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clickable(onClick = onClick)
-            .padding(start = PageGutter, end = PageGutter - 12.dp),
+            .padding(start = PageGutter, end = PageGutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
@@ -109,13 +101,5 @@ private fun RecurringReminderRow(
             colors = appSwitchColors(),
             modifier = Modifier.padding(start = 12.dp),
         )
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Outlined.Delete,
-                contentDescription = "삭제",
-                tint = MaterialTheme.mutedText,
-                modifier = Modifier.size(20.dp),
-            )
-        }
     }
 }

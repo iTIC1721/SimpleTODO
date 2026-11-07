@@ -1,16 +1,16 @@
 package com.simpletodo.simpletodo.widget
 
 import android.content.Context
-import android.content.res.Configuration
 import com.simpletodo.simpletodo.data.ThemeMode
 import com.simpletodo.simpletodo.data.ThemePreferences
 
 /**
- * RemoteViews resolves @color references using the SYSTEM's current night
- * mode (via the values/values-night resource qualifier), which can't be
- * overridden by an in-app preference. To let the widget follow a user choice
- * independent of the system setting, colors are resolved to explicit ARGB
- * ints here and applied with setTextColor/setInt instead.
+ * The widget's layouts take their colors from @color/widget_* resources,
+ * which the home screen resolves with the SYSTEM's night mode — so under the
+ * app's "시스템 기본" theme the widget follows a system switch immediately,
+ * without the app running. A forced in-app light/dark theme can't be
+ * expressed that way, so for those the colors below are applied in code
+ * (setTextColor/setColorFilter), overriding the resources.
  */
 // Mirrors the app's graphite ramp and single violet accent (ui/theme/Color.kt).
 data class WidgetColors(
@@ -34,15 +34,11 @@ private val DARK_COLORS = WidgetColors(
     error = 0xFFE5484D.toInt(),
 )
 
-fun resolveWidgetIsDark(context: Context): Boolean {
-    return when (ThemePreferences(context).themeMode) {
-        ThemeMode.DARK -> true
-        ThemeMode.LIGHT -> false
-        ThemeMode.SYSTEM -> {
-            val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            uiMode == Configuration.UI_MODE_NIGHT_YES
-        }
-    }
+/** The colors to apply in code, or null under "시스템 기본" (the layouts' resources apply). */
+fun forcedWidgetColors(themeMode: ThemeMode): WidgetColors? = when (themeMode) {
+    ThemeMode.DARK -> DARK_COLORS
+    ThemeMode.LIGHT -> LIGHT_COLORS
+    ThemeMode.SYSTEM -> null
 }
 
-fun widgetColorsFor(isDark: Boolean): WidgetColors = if (isDark) DARK_COLORS else LIGHT_COLORS
+fun widgetThemeMode(context: Context): ThemeMode = ThemePreferences(context).themeMode
