@@ -38,7 +38,7 @@ class ScheduleWidgetActionReceiver : BroadcastReceiver() {
                 }
             }
             ACTION_OPEN -> {
-                val openIntent = Intent(context, MainActivity::class.java).apply {
+                val openIntent = MainActivity.internalIntent(context).apply {
                     val scheduleId = intent.getLongExtra(EXTRA_SCHEDULE_ID, -1L)
                     if (scheduleId != -1L) putExtra(MainActivity.EXTRA_EDIT_SCHEDULE_ID, scheduleId)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

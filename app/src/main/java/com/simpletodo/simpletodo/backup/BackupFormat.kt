@@ -7,6 +7,8 @@ import com.simpletodo.simpletodo.data.daysOfWeekToMask
 import com.simpletodo.simpletodo.data.maskToDaysOfWeek
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -37,6 +39,50 @@ class InvalidBackupException(message: String, cause: Throwable? = null) : Except
 object BackupFormat {
     private const val FORMAT_ID = "simpletodo-backup"
     const val FORMAT_VERSION = 1
+
+    /**
+     * Upper bound on a backup file's size. A schedule takes about 180–240
+     * bytes, so this is roughly 220,000 schedules — far beyond real use (20 a
+     * day for 30 years). It only exists so that picking the wrong large file
+     * can't exhaust memory, since the file is read whole.
+     */
+    const val MAX_BACKUP_BYTES = 50L * 1024 * 1024
+
+    private const val NOT_A_BACKUP = "SimpleTODO 백업 파일 형식이 아닙니다."
+    private const val TOO_LARGE = "백업 파일이 너무 큽니다."
+
+    /**
+     * Reads a backup file's text, rejecting obvious non-backups before reading
+     * them whole: a backup is JSON, so its first character (after an optional
+     * byte-order mark and whitespace) is '{' — a photo or video fails that at
+     * once, however large. Anything over [maxBytes] is rejected as well.
+     */
+    fun readText(input: InputStream, maxBytes: Long = MAX_BACKUP_BYTES): String {
+        val stream = input.buffered()
+        stream.mark(PEEK_BYTES)
+        val head = ByteArray(PEEK_BYTES)
+        val headLength = stream.read(head).coerceAtLeast(0)
+        val first = head.take(headLength).dropBom().firstOrNull { it.toInt().toChar() !in " \t\r\n" }
+        if (first?.toInt()?.toChar() != '{') throw InvalidBackupException(NOT_A_BACKUP)
+        stream.reset()
+
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > maxBytes) throw InvalidBackupException(TOO_LARGE)
+            out.write(buffer, 0, read)
+        }
+        return out.toString(Charsets.UTF_8.name()).removePrefix("\uFEFF")
+    }
+
+    private const val PEEK_BYTES = 64
+
+    private fun List<Byte>.dropBom(): List<Byte> =
+        if (size >= 3 && this[0] == 0xEF.toByte() && this[1] == 0xBB.toByte() && this[2] == 0xBF.toByte()) drop(3) else this
 
     fun encode(data: BackupData, exportedAt: Instant = Instant.now(), appVersion: String = ""): String {
         val root = JSONObject()
@@ -92,7 +138,7 @@ object BackupFormat {
         try {
             val root = JSONObject(json)
             if (root.optString("format") != FORMAT_ID) {
-                throw InvalidBackupException("SimpleTODO 백업 파일 형식이 아닙니다.")
+                throw InvalidBackupException(NOT_A_BACKUP)
             }
             val version = root.getInt("version")
             if (version > FORMAT_VERSION) {

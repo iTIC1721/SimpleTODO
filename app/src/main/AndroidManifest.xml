@@ -28,6 +28,15 @@
             </intent-filter>
         </activity>
 
+        <!-- The app's own way in, for the widget's + button and its rows: not
+             exported, so only this app can start it. MainActivity honors the
+             "open add" / "edit schedule" extras only when started through here,
+             so other apps can't drive those screens via the public launcher entry. -->
+        <activity-alias
+            android:name=".InternalEntry"
+            android:exported="false"
+            android:targetActivity=".MainActivity" />
+
         <receiver
             android:name=".widget.ScheduleWidgetProvider"
             android:exported="false">

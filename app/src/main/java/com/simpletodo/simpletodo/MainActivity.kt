@@ -1,6 +1,8 @@
 package com.simpletodo.simpletodo
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -63,8 +65,12 @@ class MainActivity : ComponentActivity() {
 
         ThemeState.set(ThemePreferences(this).themeMode)
 
-        val openAddScreen = intent?.getBooleanExtra(EXTRA_OPEN_ADD, false) ?: false
-        val editScheduleId = intent?.getLongExtra(EXTRA_EDIT_SCHEDULE_ID, -1L)?.takeIf { it != -1L }
+        // MainActivity is exported (it's the launcher entry), so any app could
+        // start it with these extras. Honor them only from the non-exported
+        // InternalEntry alias, which only this app can start.
+        val trusted = intent?.component?.className == INTERNAL_ENTRY
+        val openAddScreen = trusted && intent?.getBooleanExtra(EXTRA_OPEN_ADD, false) == true
+        val editScheduleId = if (trusted) intent?.getLongExtra(EXTRA_EDIT_SCHEDULE_ID, -1L)?.takeIf { it != -1L } else null
         setContent {
             val themeMode by ThemeState.mode.collectAsState()
             val darkTheme = when (themeMode) {
@@ -97,6 +103,12 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_ADD = "com.simpletodo.simpletodo.EXTRA_OPEN_ADD"
         const val EXTRA_EDIT_SCHEDULE_ID = "com.simpletodo.simpletodo.EXTRA_EDIT_SCHEDULE_ID"
+
+        /** The non-exported activity-alias in AndroidManifest.xml. */
+        private const val INTERNAL_ENTRY = "com.simpletodo.simpletodo.InternalEntry"
+
+        /** An Intent for this app's own launches that carry extras (widget + button, widget rows). */
+        fun internalIntent(context: Context): Intent = Intent().setClassName(context, INTERNAL_ENTRY)
     }
 }
 

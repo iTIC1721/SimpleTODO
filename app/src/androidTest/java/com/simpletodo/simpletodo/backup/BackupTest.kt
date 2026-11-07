@@ -72,6 +72,33 @@ class BackupTest {
     }
 
     @Test
+    fun readText_acceptsBackupsAndRejectsNonJsonAndOversizedFiles() {
+        val json = BackupFormat.encode(BackupData(schedules, reminders, settings))
+        assertEquals(json, BackupFormat.readText(json.byteInputStream()))
+        // A byte-order mark and leading whitespace, as some editors save it, are fine.
+        val withBom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "\n  $json".toByteArray()
+        assertEquals(BackupFormat.decode(json), BackupFormat.decode(BackupFormat.readText(withBom.inputStream())))
+
+        // A photo/video is rejected from its first bytes, without reading it whole.
+        listOf(byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte()), ByteArray(0)).forEach {
+            try {
+                BackupFormat.readText(it.inputStream())
+                fail("expected rejection")
+            } catch (e: InvalidBackupException) {
+                assert(e.message!!.contains("형식이 아닙니다"))
+            }
+        }
+
+        // Over the size limit (a small limit here instead of 50MB).
+        try {
+            BackupFormat.readText(json.byteInputStream(), maxBytes = 100)
+            fail("expected rejection")
+        } catch (e: InvalidBackupException) {
+            assertEquals("백업 파일이 너무 큽니다.", e.message)
+        }
+    }
+
+    @Test
     fun decode_rejectsForeignJsonAndGarbage() {
         listOf("""{"hello":"world"}""", "not json at all", "").forEach { input ->
             try {

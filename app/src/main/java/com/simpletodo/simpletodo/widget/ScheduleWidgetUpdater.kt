@@ -82,7 +82,7 @@ object ScheduleWidgetUpdater {
         )
         views.setPendingIntentTemplate(R.id.widget_list_view, actionPendingIntent)
 
-        val addIntent = Intent(context, MainActivity::class.java).apply {
+        val addIntent = MainActivity.internalIntent(context).apply {
             putExtra(MainActivity.EXTRA_OPEN_ADD, true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

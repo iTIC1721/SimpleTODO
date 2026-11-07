@@ -46,7 +46,7 @@ object BackupManager {
     /** Throws [InvalidBackupException] before touching any data if the file isn't a valid backup. */
     suspend fun restore(context: Context, uri: Uri): BackupSummary = withContext(Dispatchers.IO) {
         val json = context.contentResolver.openInputStream(uri)
-            ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+            ?.use { BackupFormat.readText(it) }
             ?: throw InvalidBackupException("백업 파일을 열 수 없습니다.")
         val data = BackupFormat.decode(json)
 
