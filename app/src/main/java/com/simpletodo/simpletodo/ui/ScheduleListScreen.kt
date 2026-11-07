@@ -32,7 +32,10 @@ import com.simpletodo.simpletodo.data.Schedule
 import com.simpletodo.simpletodo.ui.theme.mutedText
 import java.time.LocalDate
 
-private val tabs = listOf("현재 일정", "완료한 일정", "반복 알림")
+// Completed schedules live on their own screen, reached from the bottom of
+// the 일정 list — they are history, not a peer of the two lists you act on.
+private val tabs = listOf("일정", "반복 알림")
+private const val REMINDER_TAB = 1
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,30 +48,30 @@ fun ScheduleListScreen(
     onSettingsClick: () -> Unit,
     onAddReminderClick: () -> Unit,
     onReminderClick: (RecurringReminder) -> Unit,
+    onCompletedClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val currentSchedules by viewModel.currentSchedules.collectAsState()
-    val pastSchedules by viewModel.pastSchedules.collectAsState()
-    val keyword by viewModel.searchKeyword.collectAsState()
-    val startDate by viewModel.searchStartDate.collectAsState()
-    val endDate by viewModel.searchEndDate.collectAsState()
+    val completedCount by viewModel.completedCount.collectAsState()
     val recurringReminders by viewModel.recurringReminders.collectAsState()
 
     val today = LocalDate.now()
     val todayCount = currentSchedules.count { it.date == today }
+    // A tab index saved by an older build (which had three tabs) may be out of range.
+    val tab = selectedTab.coerceIn(0, tabs.lastIndex)
 
     Scaffold(
         modifier = modifier,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = if (selectedTab == 2) onAddReminderClick else onAddClick,
+                onClick = if (tab == REMINDER_TAB) onAddReminderClick else onAddClick,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp, pressedElevation = 2.dp),
             ) {
                 Icon(
                     Icons.Outlined.Add,
-                    contentDescription = if (selectedTab == 2) "반복 알림 추가" else "일정 추가",
+                    contentDescription = if (tab == REMINDER_TAB) "반복 알림 추가" else "일정 추가",
                 )
             }
         },
@@ -80,11 +83,11 @@ fun ScheduleListScreen(
         ) {
             TodayHeader(date = today, todayCount = todayCount, onSettingsClick = onSettingsClick)
             SecondaryTabRow(
-                selectedTabIndex = selectedTab,
+                selectedTabIndex = tab,
                 containerColor = MaterialTheme.colorScheme.background,
                 indicator = {
                     TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(selectedTab),
+                        modifier = Modifier.tabIndicatorOffset(tab),
                         height = 2.dp,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -93,7 +96,7 @@ fun ScheduleListScreen(
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
-                        selected = selectedTab == index,
+                        selected = tab == index,
                         onClick = { onTabSelected(index) },
                         selectedContentColor = MaterialTheme.colorScheme.onSurface,
                         unselectedContentColor = MaterialTheme.mutedText,
@@ -101,30 +104,20 @@ fun ScheduleListScreen(
                     )
                 }
             }
-            when (selectedTab) {
-                0 -> CurrentScheduleTab(
-                    schedules = currentSchedules,
-                    onComplete = viewModel::completeSchedule,
-                    onEdit = onScheduleClick,
-                    modifier = Modifier.weight(1f),
-                )
-                1 -> PastScheduleTab(
-                    schedules = pastSchedules,
-                    keyword = keyword,
-                    startDate = startDate,
-                    endDate = endDate,
-                    onKeywordChange = viewModel::updateSearchKeyword,
-                    onDateRangeChange = viewModel::updateSearchDateRange,
-                    onClearSearch = viewModel::clearSearch,
-                    onRestore = viewModel::restoreSchedule,
-                    onDelete = viewModel::deleteSchedule,
-                    modifier = Modifier.weight(1f),
-                )
-                else -> RecurringReminderTab(
+            when (tab) {
+                REMINDER_TAB -> RecurringReminderTab(
                     reminders = recurringReminders,
                     onToggleEnabled = viewModel::setReminderEnabled,
                     onEdit = onReminderClick,
                     onDelete = viewModel::deleteReminder,
+                    modifier = Modifier.weight(1f),
+                )
+                else -> CurrentScheduleTab(
+                    schedules = currentSchedules,
+                    completedCount = completedCount,
+                    onComplete = viewModel::completeSchedule,
+                    onEdit = onScheduleClick,
+                    onOpenCompleted = onCompletedClick,
                     modifier = Modifier.weight(1f),
                 )
             }

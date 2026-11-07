@@ -70,6 +70,9 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val completedCount: StateFlow<Int> =
+        dao.getCompletedCount().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     fun updateSearchKeyword(keyword: String) {
         _searchKeyword.value = keyword
     }

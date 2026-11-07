@@ -37,6 +37,9 @@ interface ScheduleDao {
         endDate: LocalDate? = null,
     ): Flow<List<Schedule>>
 
+    @Query("SELECT COUNT(*) FROM schedule WHERE isCompleted = 1")
+    fun getCompletedCount(): Flow<Int>
+
     @Insert
     suspend fun insert(schedule: Schedule): Long
 

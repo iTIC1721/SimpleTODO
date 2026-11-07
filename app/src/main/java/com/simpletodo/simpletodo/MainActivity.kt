@@ -35,6 +35,7 @@ import com.simpletodo.simpletodo.notification.NotificationHelper
 import com.simpletodo.simpletodo.ui.AddRecurringReminderScreen
 import com.simpletodo.simpletodo.ui.AddScheduleScreen
 import com.simpletodo.simpletodo.ui.AppInfoScreen
+import com.simpletodo.simpletodo.ui.CompletedSchedulesScreen
 import com.simpletodo.simpletodo.ui.OpenSourceLicensesScreen
 import com.simpletodo.simpletodo.ui.ScheduleListScreen
 import com.simpletodo.simpletodo.ui.ScheduleViewModel
@@ -107,6 +108,7 @@ private sealed interface Screen {
     data object Settings : Screen
     data object AppInfo : Screen
     data object Licenses : Screen
+    data object Completed : Screen
     data class Edit(val schedule: Schedule) : Screen
     data object AddReminder : Screen
     data class EditReminder(val reminder: RecurringReminder) : Screen
@@ -158,6 +160,16 @@ fun ScheduleApp(
             onSettingsClick = { screen = Screen.Settings },
             onAddReminderClick = { screen = Screen.AddReminder },
             onReminderClick = { screen = Screen.EditReminder(it) },
+            onCompletedClick = { screen = Screen.Completed },
+            modifier = modifier,
+        )
+        Screen.Completed -> CompletedSchedulesScreen(
+            viewModel = viewModel,
+            onBack = {
+                // Start the next visit with an unfiltered list.
+                viewModel.clearSearch()
+                screen = Screen.List
+            },
             modifier = modifier,
         )
         Screen.Add -> AddScheduleScreen(
