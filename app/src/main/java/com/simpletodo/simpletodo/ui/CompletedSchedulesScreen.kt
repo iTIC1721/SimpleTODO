@@ -66,6 +66,7 @@ fun CompletedSchedulesScreen(
 
     var selecting by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(emptySet<Long>()) }
+    var showDeleteSelectedConfirm by remember { mutableStateOf(false) }
     // Only rows still shown count: a search typed mid-selection hides the rest.
     val selected = schedules.filter { it.id in selectedIds }
     val allSelected = schedules.isNotEmpty() && selected.size == schedules.size
@@ -121,10 +122,7 @@ fun CompletedSchedulesScreen(
                             )
                         }
                         IconButton(
-                            onClick = {
-                                delete(selected)
-                                exitSelection()
-                            },
+                            onClick = { showDeleteSelectedConfirm = true },
                             enabled = selected.isNotEmpty(),
                         ) {
                             Icon(Icons.Outlined.Delete, contentDescription = "선택 항목 삭제")
@@ -225,6 +223,22 @@ fun CompletedSchedulesScreen(
                 }
             }
         }
+    }
+
+    // Deleting several at once asks first; the undo snackbar still follows.
+    if (showDeleteSelectedConfirm) {
+        ConfirmDialog(
+            title = "일정 삭제",
+            text = "선택한 일정 ${selected.size}건을 삭제하시겠습니까?",
+            confirmLabel = "삭제",
+            destructive = true,
+            onConfirm = {
+                showDeleteSelectedConfirm = false
+                delete(selected)
+                exitSelection()
+            },
+            onDismiss = { showDeleteSelectedConfirm = false },
+        )
     }
 
     if (showStartPicker) {
