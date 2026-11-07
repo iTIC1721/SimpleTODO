@@ -47,7 +47,7 @@
 
 | 구분 | 사용 기술 |
 | --- | --- |
-| 언어 | Kotlin 2.3.10 |
+| 언어 | Kotlin 2.4.21 |
 | UI | Jetpack Compose (Material 3) |
 | 데이터베이스 | Room 2.8.4 (KSP) |
 | 위젯 | AppWidgetProvider + RemoteViews / RemoteViewsService |
