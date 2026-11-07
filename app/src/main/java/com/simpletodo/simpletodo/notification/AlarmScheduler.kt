@@ -5,10 +5,12 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.simpletodo.simpletodo.data.AlarmPreferences
+import com.simpletodo.simpletodo.data.AppDatabase
 import com.simpletodo.simpletodo.data.Schedule
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.flow.first
 
 /**
  * Two separate reminder mechanisms (기획서 3.3, revised): every day at a
@@ -32,6 +34,20 @@ object AlarmScheduler {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pendingIntent = pendingIntentFor(context, schedule.id)
         setExact(alarmManager, triggerMillis, pendingIntent)
+    }
+
+    /**
+     * Re-registers the alarm of every incomplete schedule — on boot, and when
+     * the lead time changes. Each old alarm is cancelled first: with a longer
+     * lead time the new trigger may already be past, and [schedule] would then
+     * leave the old one in place.
+     */
+    suspend fun rescheduleAll(context: Context) {
+        val dao = AppDatabase.getInstance(context).scheduleDao()
+        dao.getCurrentSchedules().first().forEach {
+            cancel(context, it.id)
+            schedule(context, it)
+        }
     }
 
     fun cancel(context: Context, scheduleId: Long) {

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -33,14 +34,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.simpletodo.simpletodo.backup.BackupManager
@@ -48,11 +54,11 @@ import com.simpletodo.simpletodo.backup.InvalidBackupException
 import com.simpletodo.simpletodo.data.AlarmPreferences
 import com.simpletodo.simpletodo.data.ThemeMode
 import com.simpletodo.simpletodo.data.ThemePreferences
-import com.simpletodo.simpletodo.notification.AlarmScheduler
-import com.simpletodo.simpletodo.notification.RecurringReminderScheduler
+import com.simpletodo.simpletodo.notification.AlarmSettings
 import com.simpletodo.simpletodo.ui.theme.ButtonShape
 import com.simpletodo.simpletodo.ui.theme.mutedText
 import com.simpletodo.simpletodo.widget.ScheduleWidgetUpdater
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -78,6 +84,22 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
     var backupInProgress by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
+
+    // Every setting applies as soon as it changes — there is no save button.
+    // The lead time is applied once typing pauses, and again as the screen
+    // closes in case it closes first. An empty field keeps the stored value.
+    val focusManager = LocalFocusManager.current
+    val latestLeadMinutesText by rememberUpdatedState(leadMinutesText)
+    fun applyLeadMinutes(text: String) {
+        text.toIntOrNull()?.let { AlarmSettings.setLeadMinutes(context, it) }
+    }
+    LaunchedEffect(leadMinutesText) {
+        delay(600)
+        applyLeadMinutes(leadMinutesText)
+    }
+    DisposableEffect(Unit) {
+        onDispose { applyLeadMinutes(latestLeadMinutesText) }
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -147,7 +169,8 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
                     OutlinedTextField(
                         value = leadMinutesText,
                         onValueChange = { leadMinutesText = it.filter(Char::isDigit).take(4) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         singleLine = true,
                         suffix = { Text("분 전", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         shape = ButtonShape,
@@ -182,19 +205,6 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
                         ) { Text("권한 설정 열기") }
                     }
                 }
-                PrimaryButton(
-                    text = "저장",
-                    onClick = {
-                        preferences.defaultNotifyHour = notifyTime.hour
-                        preferences.defaultNotifyMinute = notifyTime.minute
-                        preferences.leadMinutes = leadMinutesText.toIntOrNull()?.coerceAtLeast(0)
-                            ?: AlarmPreferences.DEFAULT_LEAD_MINUTES
-                        AlarmScheduler.scheduleDailyBriefing(context)
-                        coroutineScope.launch { RecurringReminderScheduler.rescheduleAll(context) }
-                        onBack()
-                    },
-                    modifier = Modifier.padding(top = 16.dp),
-                )
             }
 
             SettingsSection(title = "백업") {
@@ -240,7 +250,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
                         val message = runCatching { BackupManager.restore(context, uri) }.fold(
                             onSuccess = {
                                 // Settings were restored too — refresh this screen's
-                                // copies so a later "저장" doesn't overwrite them.
+                                // copies so they show (and keep) the restored values.
                                 notifyTime = preferences.defaultNotifyTime
                                 leadMinutesText = preferences.leadMinutes.toString()
                                 themeMode = themePreferences.themeMode
@@ -267,7 +277,10 @@ fun SettingsScreen(onBack: () -> Unit, onOpenAppInfo: () -> Unit, modifier: Modi
     if (showTimePicker) {
         AppTimePickerDialog(
             initialTime = notifyTime,
-            onTimeSelected = { notifyTime = it },
+            onTimeSelected = {
+                notifyTime = it
+                AlarmSettings.setBriefingTime(context, it)
+            },
             onDismiss = { showTimePicker = false },
         )
     }
