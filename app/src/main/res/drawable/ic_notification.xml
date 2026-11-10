@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status-bar icon: the app's checkbox mark as a single-color silhouette
-     (a rounded square with the check cut out), since small icons are drawn
-     from alpha only. -->
+<!-- Status-bar icon: the launcher icon's calendar reduced to a single-color
+     silhouette (small icons are drawn from alpha only) - a calendar body with
+     two binder rings on top and two list rows (a dot and a line each) cut out. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -10,5 +10,8 @@
     <path
         android:fillColor="#FFFFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M7,3h10a4,4 0 0 1 4,4v10a4,4 0 0 1 -4,4H7a4,4 0 0 1 -4,-4V7a4,4 0 0 1 4,-4z M6.6,12.4 L8.0,11.0 L10.6,13.6 L16.0,8.2 L17.4,9.6 L10.6,16.4 Z" />
+        android:pathData="M5,5h14a2,2 0 0 1 2,2v12a2,2 0 0 1 -2,2H5a2,2 0 0 1 -2,-2V7a2,2 0 0 1 2,-2z M6.1,11.5a1.4,1.4 0 1 0 2.8,0a1.4,1.4 0 1 0 -2.8,0z M10.5,10.5h7.5v2h-7.5z M6.1,16.2a1.4,1.4 0 1 0 2.8,0a1.4,1.4 0 1 0 -2.8,0z M10.5,15.2h5v2h-5z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,2h2v5h-2z M15,2h2v5h-2z" />
 </vector>
